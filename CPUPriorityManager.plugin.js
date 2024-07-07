@@ -1,7 +1,7 @@
 /**
  * @name CPUPriorityManager
  * @author Yamiuta
- * @version 1.0.0
+ * @version 1.1.0
  * @description A plugin to manage CPU priority for Discord.
  * @source https://github.com/Yamiuta/BD-CPU-Priority-Manager
  * @updateUrl https://github.com/Yamiuta/BD-CPU-Priority-Manager/update
@@ -12,10 +12,12 @@ module.exports = (() => {
         info: {
             name: "CPUPriorityManager",
             author: "Yamiuta",
-            version: "1.0.0",
+            version: "1.1.0",
             description: "A plugin to manage CPU priority for Discord."
         }
     };
+
+    const { exec } = require('child_process');
 
     return class CPUPriorityManager {
         constructor() {
@@ -51,8 +53,20 @@ module.exports = (() => {
             }
         }
 
+        scanDiscordProcesses(callback) {
+            exec(`wmic process where "name like 'Discord%'" get ProcessId`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`${config.info.name}: Failed to scan processes`, error);
+                    return;
+                }
+                const pids = stdout.split('\n')
+                    .filter(line => line.trim() && !isNaN(line.trim()))
+                    .map(pid => pid.trim());
+                callback(pids);
+            });
+        }
+
         setPriority() {
-            const { exec } = require('child_process');
             const priorityMap = {
                 'idle': 'idle',
                 'below normal': 'belownormal',
@@ -62,23 +76,30 @@ module.exports = (() => {
                 'realtime': 'realtime'
             };
             const priority = priorityMap[this.settings.priority] || 'normal';
-            exec(`wmic process where name="Discord.exe" CALL setpriority ${priority}`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`${config.info.name}: Failed to set priority`, error);
-                } else {
-                    console.log(`${config.info.name}: Priority set to ${priority}`, stdout);
-                }
+            this.scanDiscordProcesses((pids) => {
+                pids.forEach(pid => {
+                    exec(`wmic process where ProcessId=${pid} CALL setpriority ${priority}`, (error, stdout, stderr) => {
+                        if (error) {
+                            console.error(`${config.info.name}: Failed to set priority for PID ${pid}`, error);
+                        } else {
+                            console.log(`${config.info.name}: Priority set to ${priority} for PID ${pid}`, stdout);
+                        }
+                    });
+                });
             });
         }
 
         resetPriority() {
-            const { exec } = require('child_process');
-            exec(`wmic process where name="Discord.exe" CALL setpriority "normal"`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`${config.info.name}: Failed to reset priority`, error);
-                } else {
-                    console.log(`${config.info.name}: Priority reset to normal`, stdout);
-                }
+            this.scanDiscordProcesses((pids) => {
+                pids.forEach(pid => {
+                    exec(`wmic process where ProcessId=${pid} CALL setpriority "normal"`, (error, stdout, stderr) => {
+                        if (error) {
+                            console.error(`${config.info.name}: Failed to reset priority for PID ${pid}`, error);
+                        } else {
+                            console.log(`${config.info.name}: Priority reset to normal for PID ${pid}`, stdout);
+                        }
+                    });
+                });
             });
         }
 
