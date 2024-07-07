@@ -17,8 +17,6 @@ module.exports = (() => {
         }
     };
 
-    const { exec } = require('child_process');
-
     return class CPUPriorityManager {
         constructor() {
             this.settings = { priority: 'normal' };
@@ -54,7 +52,7 @@ module.exports = (() => {
         }
 
         scanDiscordProcesses(callback) {
-            exec(`wmic process where "name like 'Discord%'" get ProcessId`, (error, stdout, stderr) => {
+            BdApi.NativeModules.requireModule("child_process").exec(`wmic process where "name like 'Discord%'" get ProcessId`, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`${config.info.name}: Failed to scan processes`, error);
                     return;
@@ -78,7 +76,7 @@ module.exports = (() => {
             const priority = priorityMap[this.settings.priority] || 'normal';
             this.scanDiscordProcesses((pids) => {
                 pids.forEach(pid => {
-                    exec(`wmic process where ProcessId=${pid} CALL setpriority ${priority}`, (error, stdout, stderr) => {
+                    BdApi.NativeModules.requireModule("child_process").exec(`wmic process where ProcessId=${pid} CALL setpriority ${priority}`, (error, stdout, stderr) => {
                         if (error) {
                             console.error(`${config.info.name}: Failed to set priority for PID ${pid}`, error);
                         } else {
@@ -92,7 +90,7 @@ module.exports = (() => {
         resetPriority() {
             this.scanDiscordProcesses((pids) => {
                 pids.forEach(pid => {
-                    exec(`wmic process where ProcessId=${pid} CALL setpriority "normal"`, (error, stdout, stderr) => {
+                    BdApi.NativeModules.requireModule("child_process").exec(`wmic process where ProcessId=${pid} CALL setpriority "normal"`, (error, stdout, stderr) => {
                         if (error) {
                             console.error(`${config.info.name}: Failed to reset priority for PID ${pid}`, error);
                         } else {
