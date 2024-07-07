@@ -1,0 +1,8 @@
+{
+    "info": {
+        "name": "CPUPriorityManager",
+        "author": "Gio",
+        "version": "1.0.0",
+        "description": "A plugin to manage CPU priority for Discord."
+    }
+}
