@@ -1,6 +1,6 @@
 /**
  * @name CPUPriorityManager
- * @author Gio
+ * @author Yamiuta
  * @version 1.0.0
  * @description A plugin to manage CPU priority for Discord.
  * @source https://github.com/Yamiuta/BD-CPU-Priority-Manager
@@ -11,7 +11,7 @@ module.exports = (() => {
     const config = {
         info: {
             name: "CPUPriorityManager",
-            author: "Gio",
+            author: "Yamiuta",
             version: "1.0.0",
             description: "A plugin to manage CPU priority for Discord."
         }
@@ -20,6 +20,7 @@ module.exports = (() => {
     return class CPUPriorityManager {
         constructor() {
             this.settings = { priority: 'normal' };
+            this.interval = null;
         }
 
         getName() { return config.info.name; }
@@ -27,14 +28,85 @@ module.exports = (() => {
         getVersion() { return config.info.version; }
         getDescription() { return config.info.description; }
 
+        loadSettings() {
+            try {
+                const savedSettings = BdApi.loadData(config.info.name, 'settings');
+                if (savedSettings) {
+                    this.settings = savedSettings;
+                }
+                BdApi.showToast(`${config.info.name}: Settings loaded`, { type: 'info' });
+            } catch (error) {
+                console.error(`${config.info.name}: Failed to load settings`, error);
+            }
+        }
+
+        saveSettings(priority) {
+            try {
+                this.settings.priority = priority;
+                BdApi.saveData(config.info.name, 'settings', this.settings);
+                this.setPriority();
+                BdApi.showToast(`${config.info.name}: Settings saved`, { type: 'success' });
+            } catch (error) {
+                console.error(`${config.info.name}: Failed to save settings`, error);
+            }
+        }
+
+        setPriority() {
+            const { exec } = require('child_process');
+            const priorityMap = {
+                'idle': 'idle',
+                'below normal': 'belownormal',
+                'normal': 'normal',
+                'above normal': 'abovenormal',
+                'high': 'high',
+                'realtime': 'realtime'
+            };
+            const priority = priorityMap[this.settings.priority] || 'normal';
+            exec(`wmic process where name="Discord.exe" CALL setpriority ${priority}`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`${config.info.name}: Failed to set priority`, error);
+                } else {
+                    console.log(`${config.info.name}: Priority set to ${priority}`, stdout);
+                }
+            });
+        }
+
+        resetPriority() {
+            const { exec } = require('child_process');
+            exec(`wmic process where name="Discord.exe" CALL setpriority "normal"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`${config.info.name}: Failed to reset priority`, error);
+                } else {
+                    console.log(`${config.info.name}: Priority reset to normal`, stdout);
+                }
+            });
+        }
+
         start() {
-            this.loadSettings();
-            this.setPriority();
-            this.monitorProcesses();
+            try {
+                this.loadSettings();
+                this.setPriority();
+                this.monitorProcesses();
+                BdApi.showToast(`${config.info.name}: Started`, { type: 'success' });
+            } catch (error) {
+                console.error(`${config.info.name}: Failed to start`, error);
+            }
         }
 
         stop() {
-            this.resetPriority();
+            try {
+                clearInterval(this.interval);
+                this.resetPriority();
+                BdApi.showToast(`${config.info.name}: Stopped`, { type: 'info' });
+            } catch (error) {
+                console.error(`${config.info.name}: Failed to stop`, error);
+            }
+        }
+
+        monitorProcesses() {
+            this.interval = setInterval(() => {
+                this.setPriority();
+            }, 5000);
         }
 
         getSettingsPanel() {
@@ -54,51 +126,11 @@ module.exports = (() => {
 
             const select = settingsPanel.querySelector('#priority');
             select.value = this.settings.priority;
-            select.addEventListener('change', () => this.saveSettings(select.value));
+            select.addEventListener('change', (event) => {
+                this.saveSettings(event.target.value);
+            });
 
             return settingsPanel;
-        }
-
-        loadSettings() {
-            const savedSettings = BdApi.loadData(config.info.name, 'settings');
-            if (savedSettings) {
-                this.settings = savedSettings;
-            }
-        }
-
-        saveSettings(priority) {
-            this.settings.priority = priority;
-            BdApi.saveData(config.info.name, 'settings', this.settings);
-            this.setPriority();
-        }
-
-        setPriority() {
-            const { exec } = require('child_process');
-            const priorityMap = {
-                'idle': 'idle',
-                'below normal': 'belownormal',
-                'normal': 'normal',
-                'above normal': 'abovenormal',
-                'high': 'high',
-                'realtime': 'realtime'
-            };
-            const priority = priorityMap[this.settings.priority] || 'normal';
-            exec(`wmic process where name="Discord.exe" CALL setpriority ${priority}`);
-        }
-
-        resetPriority() {
-            const { exec } = require('child_process');
-            exec(`wmic process where name="Discord.exe" CALL setpriority "normal"`);
-        }
-
-        monitorProcesses() {
-            this.interval = setInterval(() => {
-                this.setPriority();
-            }, 5000);
-        }
-
-        disableBackgroundRendering() {
-            // Add code to disable background rendering
         }
     };
 })();
