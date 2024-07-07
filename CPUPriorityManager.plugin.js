@@ -1,10 +1,10 @@
 /**
  * @name CPUPriorityManager
- * @author Your Name
+ * @author Gio
  * @version 1.0.0
  * @description A plugin to manage CPU priority for Discord.
- * @source https://github.com/your-username/CPUPriorityManager
- * @updateUrl https://github.com/your-username/CPUPriorityManager/update
+ * @source https://github.com/Yamiuta/BD-CPU-Priority-Manager
+ * @updateUrl https://github.com/Yamiuta/BD-CPU-Priority-Manager/update
  */
 
 module.exports = (() => {
